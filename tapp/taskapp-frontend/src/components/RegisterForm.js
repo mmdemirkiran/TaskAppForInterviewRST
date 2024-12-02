@@ -1,13 +1,42 @@
 import React, { useState } from "react";
 
 const RegisterForm = () => {
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [formData, setFormData] = useState({
+    username: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
+  };
 
   const handleRegister = async (e) => {
     e.preventDefault();
+
+    // Alanların doldurulup doldurulmadığını kontrol et
+    if (
+      !formData.username ||
+      !formData.email ||
+      !formData.password ||
+      !formData.confirmPassword
+    ) {
+      setError("All fields are required!");
+      return;
+    }
+
+    // Şifre eşleşmesi kontrolü
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match!");
+      return;
+    }
 
     try {
       const response = await fetch("https://localhost:7175/api/Auth/register", {
@@ -15,11 +44,22 @@ const RegisterForm = () => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ username, email, password }),
+        body: JSON.stringify({
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+        }),
       });
 
       if (response.ok) {
         setMessage("Registration successful! You can now log in.");
+        setError(""); // Hata mesajını temizle
+        setFormData({
+          username: "",
+          email: "",
+          password: "",
+          confirmPassword: "",
+        }); // Formu sıfırla
       } else {
         const errorData = await response.json();
         setMessage(errorData.message || "Registration failed.");
@@ -35,28 +75,40 @@ const RegisterForm = () => {
       <form onSubmit={handleRegister}>
         <input
           type="text"
+          name="username"
           placeholder="Username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
+          value={formData.username}
+          onChange={handleInputChange}
           required
         />
         <input
           type="email"
+          name="email"
           placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          value={formData.email}
+          onChange={handleInputChange}
           required
         />
         <input
           type="password"
+          name="password"
           placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          value={formData.password}
+          onChange={handleInputChange}
           required
         />
+        <input
+          type="password"
+          name="confirmPassword"
+          placeholder="Confirm Password"
+          value={formData.confirmPassword}
+          onChange={handleInputChange}
+          required
+        />
+        {error && <p style={{ color: "red" }}>{error}</p>}
+        {message && <p style={{ color: "green" }}>{message}</p>}
         <button type="submit">Register</button>
       </form>
-      {message && <p>{message}</p>}
     </div>
   );
 };

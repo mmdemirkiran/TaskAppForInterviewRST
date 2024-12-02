@@ -1,20 +1,16 @@
 import React, { useEffect, useState, useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
 
-
-
 const TaskList = () => {
   const [tasks, setTasks] = useState([]); // Mevcut görevler
   const [newTask, setNewTask] = useState({ title: "", description: "" }); // Yeni görev formu
   const { token, logout } = useContext(AuthContext); // Kullanıcı token bilgisi ve logout fonksiyonu
 
-  const [sortOption, setSortOption] = useState(""); // Sıralama seçeneği
+  const [editingTask, setEditingTask] = useState(null); // Düzenlenen görev bilgisi
 
   // Görevleri backend'den çek
   useEffect(() => {
     const fetchTasks = async () => {
-      console.log("Token:", token); // Token'in doğruluğunu kontrol edin
-
       try {
         const response = await fetch("https://localhost:7175/api/tasks", {
           method: "GET",
@@ -43,43 +39,76 @@ const TaskList = () => {
     fetchTasks();
   }, [token, logout]);
 
-  // Yeni görev ekleme
-  const addTask = async (e) => {
-    e.preventDefault(); // Sayfanın yenilenmesini engeller
+  // Yeni görev ekleme veya düzenleme kaydetme
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     if (!newTask.title || !newTask.description) {
-      alert("Title and Description are required!"); // Boş alan kontrolü
+      alert("Title and Description are required!");
       return;
     }
 
-    try {
-      const response = await fetch("https://localhost:7175/api/tasks", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`, // Token'i gönder
-        },
-        body: JSON.stringify(newTask), // Görevi backend'e gönder
-      });
+    if (editingTask) {
+      // Düzenleme modu
+      try {
+        const response = await fetch(`https://localhost:7175/api/tasks/${editingTask.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(newTask),
+        });
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          alert("Session expired. Please log in again.");
-          logout(); // Token geçersizse çıkış yap
+        if (response.ok) {
+          const updatedTask = await response.json();
+          setTasks((prevTasks) =>
+            prevTasks.map((task) =>
+              task.id === updatedTask.id ? updatedTask : task
+            )
+          );
+          setEditingTask(null); // Düzenleme modundan çık
+          setNewTask({ title: "", description: "" }); // Formu sıfırla
+          alert("Task successfully updated!");
         } else {
-          console.error("Failed to add task. Status:", response.status);
+          console.error("Failed to update task");
+          alert("Failed to update task!");
+        }
+      } catch (error) {
+        console.error("Error updating task:", error);
+        alert("An error occurred while updating the task.");
+      }
+    } else {
+      // Yeni görev ekleme
+      try {
+        const response = await fetch("https://localhost:7175/api/tasks", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(newTask),
+        });
+
+        if (response.ok) {
+          const createdTask = await response.json();
+          setTasks((prevTasks) => [...prevTasks, createdTask]);
+          setNewTask({ title: "", description: "" }); // Formu sıfırla
+          alert("Task successfully added!");
+        } else {
+          console.error("Failed to add task");
           alert("Failed to add task!");
         }
-        return;
+      } catch (error) {
+        console.error("Error adding task:", error);
+        alert("An error occurred while adding the task.");
       }
-
-      const createdTask = await response.json();
-      setTasks((prevTasks) => [...prevTasks, createdTask]); // Yeni görevi listeye ekle
-      setNewTask({ title: "", description: "" }); // Formu sıfırla
-      alert("Task successfully added!");
-    } catch (error) {
-      console.error("Error adding task:", error);
-      alert("An error occurred while adding the task.");
     }
+  };
+
+  // Düzenleme işlemini başlat
+  const startEditing = (task) => {
+    setEditingTask(task); // Düzenlenecek görevi seç
+    setNewTask({ title: task.title, description: task.description }); // Mevcut verileri forma doldur
   };
 
   // Görev silme
@@ -112,30 +141,12 @@ const TaskList = () => {
     }
   };
 
-  // Görevleri sıralama
-  const sortTasks = (option) => {
-    let sortedTasks = [...tasks];
-    if (option === "title") {
-      sortedTasks.sort((a, b) => a.title.localeCompare(b.title)); // A-Z sıralama
-    } else if (option === "date") {
-      sortedTasks.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // Yeni -> Eski sıralama
-    }
-    setTasks(sortedTasks);
-    setSortOption(option);
-  };
-
   return (
     <div className="tasklist-container">
       <h1>Task List</h1>
 
-      {/* Sıralama Seçenekleri */}
-      <div className="sort-container">
-        <button onClick={() => sortTasks("title")}>Sort by Title (A-Z)</button>
-        <button onClick={() => sortTasks("date")}>Sort by Date (New to Old)</button>
-      </div>
-
-      {/* Yeni Görev Ekleme Formu */}
-      <form onSubmit={addTask}>
+      {/* Yeni Görev Ekleme veya Düzenleme Formu */}
+      <form onSubmit={handleSubmit}>
         <input
           type="text"
           placeholder="Task Title"
@@ -147,7 +158,7 @@ const TaskList = () => {
           value={newTask.description}
           onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
         ></textarea>
-        <button type="submit">Add Task</button>
+        <button type="submit">{editingTask ? "Save Changes" : "Add Task"}</button>
       </form>
 
       {/* Görevler Tablosu */}
@@ -167,7 +178,7 @@ const TaskList = () => {
               <td>{task.title}</td>
               <td>{task.description}</td>
               <td>
-                <button onClick={() => alert(`Editing Task: ${task.id}`)}>Edit</button>
+                <button onClick={() => startEditing(task)}>Edit</button>
                 <button onClick={() => deleteTask(task.id)}>Delete</button>
               </td>
             </tr>

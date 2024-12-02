@@ -1,0 +1,3 @@
+﻿<Project>
+  <Import Project="..\build\TaskApp1.props" />
+</Project>
