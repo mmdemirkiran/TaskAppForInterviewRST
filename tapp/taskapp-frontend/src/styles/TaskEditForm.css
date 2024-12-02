@@ -1,0 +1,33 @@
+.form-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;    
+    justify-content: center; 
+    height: 100vh;          
+  }
+  
+  input, textarea, button {
+    margin: 25px 0;        
+    padding: 20px;         
+    width: 90%;            
+    margin-left:25%;
+    margin-right:25%;
+    max-width: 950px;     
+  }
+  
+  button {
+    background-color: #3d2ebf;
+    color: white;
+    border: none;
+    border-radius: 7px;
+    cursor: pointer;
+    margin-left:26%;
+    margin-right:27%;
+    justify-content: center;
+  }
+  
+  button:hover {
+    background-color: #222c36;
+    justify-content: center;
+  }
+  
